@@ -151,10 +151,12 @@ defmodule Mongo.Ecto.Connection do
 
   defp log(repo, entry) do
     %{connection_time: query_time, decode_time: decode_time,
-      pool_time: queue_time, result: result, query: query, params: params} = entry
+      pool_time: queue_time, result: result,
+      query: query, params: params} = entry
+
     repo.__log__(%Ecto.LogEntry{query_time: query_time, decode_time: decode_time,
                                 queue_time: queue_time, result: log_result(result),
-                                params: [], query: &format_query(&1, query, params)})
+                                params: [], query: format_query(query, params)})
   end
 
   defp log_result({:ok, _query, res}), do: {:ok, res}
@@ -180,45 +182,58 @@ defmodule Mongo.Ecto.Connection do
 
   alias Mongo.Query
 
-  # TODO: fix logging
-  defp format_query(_entry, %Query{action: :command}, [command]) do
+  # TODO: Implement correct logging
+  defp format_query(%Query{action: :command}, [command]) do
     ["COMMAND " | inspect(command)]
+    |> prepare_format
   end
-  defp format_query(_entry, :insert_one, [coll, doc, _opts]) do
-    ["INSERT", format_part("coll", coll), format_part("document", doc)]
+  defp format_query(%Query{action: action} = _query, opts) do
+    [action, inspect(opts)]
+    |> prepare_format
   end
-  defp format_query(_entry, :insert_many, [coll, docs, _opts]) do
-    ["INSERT", format_part("coll", coll), format_part("documents", docs)]
-  end
-  defp format_query(_entry, :delete_one, [coll, filter, _opts]) do
-    ["DELETE", format_part("coll", coll), format_part("filter", filter),
-     format_part("many", false)]
-  end
-  defp format_query(_entry, :delete_many, [coll, filter, _opts]) do
-    ["DELETE", format_part("coll", coll), format_part("filter", filter),
-     format_part("many", true)]
-  end
-  defp format_query(_entry, :replace_one, [coll, filter, doc, _opts]) do
-    ["REPLACE", format_part("coll", coll), format_part("filter", filter),
-     format_part("document", doc)]
-  end
-  defp format_query(_entry, :update_one, [coll, filter, update, _opts]) do
-    ["UPDATE", format_part("coll", coll), format_part("filter", filter),
-     format_part("update", update), format_part("many", false)]
-  end
-  defp format_query(_entry, :update_many, [coll, filter, update, _opts]) do
-    ["UPDATE", format_part("coll", coll), format_part("filter", filter),
-     format_part("update", update), format_part("many", true)]
-  end
-  defp format_query(_entry, :find, [coll, query, projection, _opts]) do
-    ["FIND", format_part("coll", coll), format_part("query", query),
-     format_part("projection", projection)]
-  end
-  defp format_query(_entry, :find_rest, [coll, cursor, _opts]) do
-    ["GET_MORE", format_part("coll", coll), format_part("cursor_id", cursor)]
-  end
-  defp format_query(_entry, :kill_cursors, [cursors, _opts]) do
-    ["KILL_CURSORS", format_part("cursor_ids", cursors)]
+
+  # TODO: All of these...
+  # defp format_query(_entry, :insert_one, [coll, doc, _opts]) do
+  #   ["INSERT", format_part("coll", coll), format_part("document", doc)]
+  # end
+  # defp format_query(_entry, :insert_many, [coll, docs, _opts]) do
+  #   ["INSERT", format_part("coll", coll), format_part("documents", docs)]
+  # end
+  # defp format_query(_entry, :delete_one, [coll, filter, _opts]) do
+  #   ["DELETE", format_part("coll", coll), format_part("filter", filter),
+  #    format_part("many", false)]
+  # end
+  # defp format_query(_entry, :delete_many, [coll, filter, _opts]) do
+  #   ["DELETE", format_part("coll", coll), format_part("filter", filter),
+  #    format_part("many", true)]
+  # end
+  # defp format_query(_entry, :replace_one, [coll, filter, doc, _opts]) do
+  #   ["REPLACE", format_part("coll", coll), format_part("filter", filter),
+  #    format_part("document", doc)]
+  # end
+  # defp format_query(_entry, :update_one, [coll, filter, update, _opts]) do
+  #   ["UPDATE", format_part("coll", coll), format_part("filter", filter),
+  #    format_part("update", update), format_part("many", false)]
+  # end
+  # defp format_query(_entry, :update_many, [coll, filter, update, _opts]) do
+  #   ["UPDATE", format_part("coll", coll), format_part("filter", filter),
+  #    format_part("update", update), format_part("many", true)]
+  # end
+  # defp format_query(_entry, :find, [coll, query, projection, _opts]) do
+  #   ["FIND", format_part("coll", coll), format_part("query", query),
+  #    format_part("projection", projection)]
+  # end
+  # defp format_query(_entry, :find_rest, [coll, cursor, _opts]) do
+  #   ["GET_MORE", format_part("coll", coll), format_part("cursor_id", cursor)]
+  # end
+  # defp format_query(_entry, :kill_cursors, [cursors, _opts]) do
+  #   ["KILL_CURSORS", format_part("cursor_ids", cursors)]
+  # end
+
+  defp prepare_format(log) do
+    log
+    |> List.flatten
+    |> Enum.join(" ")
   end
 
   defp format_part(name, value) do
