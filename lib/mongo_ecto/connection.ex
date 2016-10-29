@@ -184,7 +184,7 @@ defmodule Mongo.Ecto.Connection do
 
   # TODO: Implement correct logging
   defp format_query(%Query{action: :command}, [command]) do
-    ["COMMAND " | inspect(command)]
+    ["COMMAND ", inspect(command)]
     |> prepare_format
   end
   defp format_query(%Query{action: action} = _query, opts) do
